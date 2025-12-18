@@ -73,13 +73,13 @@ export const confirmBooking = async (req, res) => {
   try {
     console.log('💳 Confirming booking payment:', req.body);
     
-    const { bookingId, paymentMethod, transactionId } = req.body;
+    const { bookingId, paymentMethod } = req.body;
     const userId = req.headers['x-user-id'];
 
-    if (!bookingId || !paymentMethod || !transactionId || !userId) {
+    if (!bookingId || !paymentMethod || !userId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Missing required fields: bookingId, paymentMethod, transactionId' 
+        message: 'Missing required fields: bookingId, paymentMethod' 
       });
     }
 
@@ -99,13 +99,13 @@ export const confirmBooking = async (req, res) => {
     booking.status = 'paid';
     await booking.save();
 
-    // Create transaction record
+    // Create transaction record using booking's unique bookingId as transactionId
     const transactionData = {
       userId: userId,
       bookingId: booking._id,
       amount: booking.totalPrice,
       paymentMethod: paymentMethod,
-      transactionId: transactionId,
+      transactionId: booking.bookingId, // Use booking's unique ID as transaction ID
       status: 'Success',
       ticketTitle: booking.ticketTitle,
       bookingReference: booking.bookingId
