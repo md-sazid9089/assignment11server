@@ -5,6 +5,17 @@ export const createOrUpdateUser = async (req, res) => {
   try {
     const { name, email, photoURL, firebaseUid } = req.body;
 
+    console.log('📥 Received user create request:', { name, email, firebaseUid: firebaseUid ? '✓' : '✗' });
+
+    // Validate required fields
+    if (!email || !firebaseUid) {
+      console.error('❌ Missing required fields:', { email: !!email, firebaseUid: !!firebaseUid });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email and firebaseUid are required' 
+      });
+    }
+
     let user = await User.findOne({ firebaseUid });
 
     if (user) {
@@ -14,18 +25,35 @@ export const createOrUpdateUser = async (req, res) => {
       await user.save();
       console.log('✅ Updated existing user:', email, 'with role:', user.role);
     } else {
-      // Create new user
-      // Automatically assign admin role to specific email
-      const role = email === 'sazid.cse.20230104062@aust.edu' ? 'admin' : 'user';
-      
-      user = await User.create({
-        name,
-        email,
-        photoURL,
-        firebaseUid,
-        role,
-      });
-      console.log('✨ Created new user:', email, 'with role:', role);
+      // Check if email already exists with different firebaseUid
+      const existingEmailUser = await User.findOne({ email });
+      if (existingEmailUser) {
+        console.warn('⚠️ Email exists with different firebaseUid:', { 
+          email, 
+          existingUid: existingEmailUser.firebaseUid,
+          newUid: firebaseUid 
+        });
+        // Update the firebaseUid for existing user (in case of firebase re-authentication)
+        existingEmailUser.firebaseUid = firebaseUid;
+        existingEmailUser.name = name || existingEmailUser.name;
+        existingEmailUser.photoURL = photoURL || existingEmailUser.photoURL;
+        await existingEmailUser.save();
+        user = existingEmailUser;
+        console.log('✅ Updated firebaseUid for existing user:', email);
+      } else {
+        // Create new user
+        // Automatically assign admin role to specific email
+        const role = email === 'sazid.cse.20230104062@aust.edu' ? 'admin' : 'user';
+        
+        user = await User.create({
+          name,
+          email,
+          photoURL,
+          firebaseUid,
+          role,
+        });
+        console.log('✨ Created new user:', email, 'with role:', role);
+      }
     }
 
     res.status(200).json({
@@ -40,7 +68,40 @@ export const createOrUpdateUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ Error in createOrUpdateUser:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      keyPattern: error.keyPattern,
+      keyValue: error.keyValue,
+      stack: error.stack?.split('\n').slice(0, 3).join('\n')
+    });
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+      return res.status(409).json({ 
+        success: false, 
+        message: `User with this ${field} already exists`,
+        errorCode: 'DUPLICATE_KEY'
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        success: false, 
+        message: error.message,
+        errorCode: 'VALIDATION_ERROR'
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Internal server error',
+      errorCode: 'INTERNAL_ERROR'
+    });
   }
 };
 
