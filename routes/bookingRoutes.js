@@ -6,6 +6,7 @@ import {
   updateBookingStatus,
   getBookingById,
   deleteBooking,
+  confirmBooking,
 } from '../controllers/bookingController.js';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 
@@ -13,6 +14,7 @@ const router = express.Router();
 
 // User routes
 router.post('/', verifyToken, createBooking);
+router.post('/confirm', verifyToken, confirmBooking);
 router.get('/my-bookings', verifyToken, getUserBookings);
 router.get('/:id', verifyToken, getBookingById);
 router.delete('/:id', verifyToken, deleteBooking);

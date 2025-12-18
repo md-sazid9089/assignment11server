@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js';
 import Ticket from '../models/Ticket.js';
+import { createTransaction } from './transactionController.js';
 
 // Create booking
 export const createBooking = async (req, res) => {
@@ -63,6 +64,70 @@ export const createBooking = async (req, res) => {
     res.status(201).json({ success: true, booking });
   } catch (error) {
     console.error('❌ Error creating booking:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Confirm booking with payment and create transaction
+export const confirmBooking = async (req, res) => {
+  try {
+    console.log('💳 Confirming booking payment:', req.body);
+    
+    const { bookingId, paymentMethod, transactionId } = req.body;
+    const userId = req.headers['x-user-id'];
+
+    if (!bookingId || !paymentMethod || !transactionId || !userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields: bookingId, paymentMethod, transactionId' 
+      });
+    }
+
+    // Find and update booking
+    const booking = await Booking.findById(bookingId).populate('ticketId');
+    
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    // Check if booking belongs to user
+    if (booking.userId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    // Update booking status to paid
+    booking.status = 'paid';
+    await booking.save();
+
+    // Create transaction record
+    const transactionData = {
+      userId: userId,
+      bookingId: booking._id,
+      amount: booking.totalPrice,
+      paymentMethod: paymentMethod,
+      transactionId: transactionId,
+      status: 'Success',
+      ticketTitle: booking.ticketTitle,
+      bookingReference: booking.bookingId
+    };
+
+    const transaction = await createTransaction(transactionData);
+
+    console.log('✅ Booking confirmed and transaction recorded:', {
+      bookingId: booking.bookingId,
+      transactionId: transaction.transactionId,
+      amount: transaction.amount
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      booking: booking,
+      transaction: transaction,
+      message: 'Booking confirmed and payment processed successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error confirming booking:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
