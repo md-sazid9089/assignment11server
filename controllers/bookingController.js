@@ -220,6 +220,51 @@ export const getBookingById = async (req, res) => {
   }
 };
 
+// Get all bookings (Admin only)
+export const getAllBookings = async (req, res) => {
+  try {
+    console.log('📊 Admin fetching all bookings...');
+    
+    const bookings = await Booking.find({})
+      .populate('userId', 'name email')
+      .populate('ticketId', 'title from to')
+      .sort({ createdAt: -1 });
+
+    // Format bookings with proper field names for frontend
+    const formattedBookings = bookings.map(booking => ({
+      _id: booking._id,
+      bookingId: booking.bookingId, // This is the unique ID like "UR-ABC123"
+      userName: booking.userName || booking.userId?.name || 'Unknown User',
+      userEmail: booking.userEmail || booking.userId?.email || 'No Email',
+      ticketTitle: booking.ticketTitle || booking.ticketId?.title || 'Unknown Ticket',
+      ticketRoute: booking.ticketId ? `${booking.ticketId.from} to ${booking.ticketId.to}` : 'Unknown Route',
+      quantity: booking.quantity,
+      totalAmount: booking.totalPrice, // Map totalPrice to totalAmount for frontend consistency
+      totalPrice: booking.totalPrice,
+      status: booking.status,
+      vendorId: booking.vendorId,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt
+    }));
+
+    console.log(`✅ Admin bookings fetched: ${formattedBookings.length}`);
+    console.log('Sample booking:', formattedBookings[0] ? {
+      bookingId: formattedBookings[0].bookingId,
+      userName: formattedBookings[0].userName,
+      status: formattedBookings[0].status
+    } : 'No bookings found');
+    
+    res.status(200).json({ 
+      success: true, 
+      data: formattedBookings,
+      count: formattedBookings.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching admin bookings:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Delete booking (Cancel ticket)
 export const deleteBooking = async (req, res) => {
   try {

@@ -7,10 +7,14 @@ import {
   getBookingById,
   deleteBooking,
   confirmBooking,
+  getAllBookings,
 } from '../controllers/bookingController.js';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Admin routes (must come before parameterized routes)
+router.get('/admin/all', verifyToken, getAllBookings);
 
 // User routes
 router.post('/', verifyToken, createBooking);
