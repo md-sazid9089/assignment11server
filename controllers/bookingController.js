@@ -30,6 +30,17 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Insufficient ticket quantity' });
     }
 
+    console.log('📋 Creating booking with data:', {
+      userId: req.user._id,
+      ticketId,
+      userName,
+      userEmail,
+      ticketTitle,
+      quantity,
+      totalPrice,
+      vendorId,
+    });
+
     const booking = await Booking.create({
       userId: req.user._id,
       ticketId,
