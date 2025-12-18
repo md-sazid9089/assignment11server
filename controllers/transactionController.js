@@ -103,6 +103,104 @@ export const getTransactionById = async (req, res) => {
   }
 };
 
+// Get all transactions for admin
+export const getAdminTransactions = async (req, res) => {
+  try {
+    console.log('📊 Admin fetching all transactions...');
+    
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const transactions = await Transaction.find({})
+      .populate('userId', 'name email')
+      .populate('bookingId', 'ticketTitle quantity')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Transaction.countDocuments();
+
+    // Format transactions for frontend
+    const formattedTransactions = transactions.map(transaction => ({
+      _id: transaction._id,
+      transactionId: transaction.transactionId,
+      userName: transaction.userId?.name || 'Unknown User',
+      userEmail: transaction.userId?.email || 'No Email',
+      ticketTitle: transaction.bookingId?.ticketTitle || transaction.ticketTitle || 'Unknown Ticket',
+      amount: transaction.amount,
+      paymentMethod: transaction.paymentMethod,
+      status: transaction.status,
+      date: transaction.createdAt,
+      bookingId: transaction.bookingId?._id
+    }));
+
+    console.log(`✅ Admin transactions fetched: ${formattedTransactions.length}/${total}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      transactions: formattedTransactions,
+      pagination: {
+        current: page,
+        total: Math.ceil(total / limit),
+        count: formattedTransactions.length,
+        totalRecords: total
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching admin transactions:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get vendor transactions (transactions for vendor's tickets)
+export const getVendorTransactions = async (req, res) => {
+  try {
+    const vendorId = req.headers['x-user-id'];
+    console.log('📊 Vendor fetching transactions for vendorId:', vendorId);
+    
+    if (!vendorId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Vendor authentication required' 
+      });
+    }
+
+    // Find all bookings for vendor's tickets, then get transactions for those bookings
+    const vendorBookings = await Booking.find({ vendorId }).select('_id');
+    const bookingIds = vendorBookings.map(booking => booking._id);
+
+    const transactions = await Transaction.find({ bookingId: { $in: bookingIds } })
+      .populate('userId', 'name email')
+      .populate('bookingId', 'ticketTitle quantity')
+      .sort({ createdAt: -1 });
+
+    // Format transactions for frontend
+    const formattedTransactions = transactions.map(transaction => ({
+      _id: transaction._id,
+      transactionId: transaction.transactionId,
+      userName: transaction.userId?.name || 'Unknown User',
+      userEmail: transaction.userId?.email || 'No Email',
+      ticketTitle: transaction.bookingId?.ticketTitle || transaction.ticketTitle || 'Unknown Ticket',
+      amount: transaction.amount,
+      paymentMethod: transaction.paymentMethod,
+      status: transaction.status,
+      date: transaction.createdAt,
+      bookingId: transaction.bookingId?._id
+    }));
+
+    console.log(`✅ Vendor transactions fetched: ${formattedTransactions.length}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      transactions: formattedTransactions
+    });
+  } catch (error) {
+    console.error('❌ Error fetching vendor transactions:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Get transaction statistics for user
 export const getTransactionStats = async (req, res) => {
   try {
