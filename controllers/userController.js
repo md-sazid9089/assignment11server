@@ -1,4 +1,58 @@
 import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+
+// Generate JWT token
+export const generateJWT = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email is required' 
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        userId: user._id,
+        email: user.email,
+        role: user.role 
+      },
+      process.env.JWT_SECRET || 'your-secret-key-change-this',
+      { expiresIn: '7d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        photoURL: user.photoURL
+      }
+    });
+  } catch (error) {
+    console.error('JWT Generation Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
 
 // Create or update user
 export const createOrUpdateUser = async (req, res) => {
@@ -42,8 +96,8 @@ export const createOrUpdateUser = async (req, res) => {
         console.log('✅ Updated firebaseUid for existing user:', email);
       } else {
         // Create new user
-        // Automatically assign admin role to specific email
-        const role = email === 'sazid.cse.20230104062@aust.edu' ? 'admin' : 'user';
+        // Automatically assign admin role to specific email, vendor role to vendor email
+        const role = email === 'sazid98@gmail.com' ? 'admin' : email === 'abrar98@gmail.com' ? 'vendor' : 'user';
         
         user = await User.create({
           name,

@@ -10,7 +10,7 @@ const createAdmin = async () => {
     console.log('Connected to MongoDB');
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'sazid.cse.20230104062@aust.edu' });
+    const existingAdmin = await User.findOne({ email: 'sazid98@gmail.com' });
     
     if (existingAdmin) {
       // Update existing user to admin
@@ -21,7 +21,7 @@ const createAdmin = async () => {
       // Create new admin user
       const admin = new User({
         name: 'Admin User',
-        email: 'sazid.cse.20230104062@aust.edu',
+        email: 'sazid98@gmail.com',
         photoURL: 'https://i.ibb.co/KyrMvxz/admin-avatar.png',
         role: 'admin',
         fraudFlag: false,
@@ -33,7 +33,7 @@ const createAdmin = async () => {
     }
 
     console.log('\nAdmin credentials:');
-    console.log('Email: sazid.cse.20230104062@aust.edu');
+    console.log('Email: sazid98@gmail.com');
     console.log('Password: admin123');
     console.log('\nNote: You need to create this user in Firebase Authentication manually.');
     

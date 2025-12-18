@@ -13,10 +13,12 @@ export const createTicket = async (req, res) => {
       departureDate,
       departureTime,
       perks,
-      image,
+      imageUrl,
       vendorName,
       vendorEmail,
     } = req.body;
+
+    console.log('📥 Received ticket data:', req.body);
 
     const ticket = await Ticket.create({
       title,
@@ -28,14 +30,17 @@ export const createTicket = async (req, res) => {
       departureDate,
       departureTime,
       perks: perks || [],
-      image,
+      imageUrl,
       vendorName,
       vendorEmail,
       vendorId: req.user._id,
+      verificationStatus: 'approved', // Auto-approve vendor tickets
     });
 
+    console.log('✅ Ticket created successfully:', ticket._id);
     res.status(201).json({ success: true, ticket });
   } catch (error) {
+    console.error('❌ Ticket creation error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -50,6 +55,8 @@ export const getAllApprovedTickets = async (req, res) => {
       page = 1,
       limit = 9,
     } = req.query;
+
+    console.log('🔍 Fetching approved tickets with query:', { search, transportType, sortBy, page, limit });
 
     let query = {
       verificationStatus: 'approved',
@@ -87,6 +94,8 @@ export const getAllApprovedTickets = async (req, res) => {
 
     const total = await Ticket.countDocuments(query);
 
+    console.log(`✅ Found ${tickets.length} approved tickets out of ${total} total`);
+
     res.status(200).json({
       success: true,
       tickets,
@@ -98,6 +107,7 @@ export const getAllApprovedTickets = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('❌ Error fetching approved tickets:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -215,9 +225,18 @@ export const deleteTicket = async (req, res) => {
 // Get all tickets for admin
 export const getAllTicketsAdmin = async (req, res) => {
   try {
+    console.log('🔐 Admin fetching all tickets...');
     const tickets = await Ticket.find({}).sort({ createdAt: -1 });
+    console.log(`✅ Admin Dashboard: Found ${tickets.length} total tickets in MongoDB`);
+    console.log('Sample ticket:', tickets[0] ? {
+      id: tickets[0]._id,
+      title: tickets[0].title,
+      status: tickets[0].verificationStatus,
+      vendor: tickets[0].vendorEmail
+    } : 'No tickets');
     res.status(200).json({ success: true, tickets });
   } catch (error) {
+    console.error('❌ Error fetching admin tickets:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -33,7 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.get('/', (req, res) => {
-  res.json({ message: 'TicketBari API is running' });
+  res.json({ message: 'Uraan API is running' });
 });
 
 app.use('/api/users', userRoutes);

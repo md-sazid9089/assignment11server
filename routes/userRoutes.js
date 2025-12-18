@@ -5,6 +5,7 @@ import {
   getAllUsers,
   updateUserRole,
   markUserAsFraud,
+  generateJWT,
 } from '../controllers/userController.js';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 
@@ -12,6 +13,7 @@ const router = express.Router();
 
 // Public routes
 router.post('/create', createOrUpdateUser);
+router.post('/jwt', generateJWT);
 
 // Protected routes
 router.get('/profile', verifyToken, getUserProfile);
