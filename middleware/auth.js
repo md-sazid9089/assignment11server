@@ -1,11 +1,24 @@
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 export const verifyToken = async (req, res, next) => {
   try {
-    const userId = req.headers['x-user-id'];
+    let userId = req.headers['x-user-id'];
+    
+    // Try to get user from JWT token first
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decoded.userId;
+      } catch (jwtError) {
+        console.log('JWT verification failed, falling back to x-user-id header');
+      }
+    }
 
     if (!userId) {
-      return res.status(401).json({ message: 'No user ID provided' });
+      return res.status(401).json({ message: 'No user ID or token provided' });
     }
 
     // Find user in database
