@@ -98,7 +98,7 @@ export const confirmBooking = async (req, res) => {
     }
 
     // Update booking status to paid
-    booking.status = 'paid';
+    booking.status = 'Paid';
     await booking.save();
 
     // Create transaction record using booking's unique bookingId as transactionId
@@ -188,7 +188,7 @@ export const updateBookingStatus = async (req, res) => {
   try {
     const { bookingId, status } = req.body;
 
-    if (!['accepted', 'rejected'].includes(status)) {
+    if (!['Approved', 'Cancelled'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
 

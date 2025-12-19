@@ -28,7 +28,7 @@ export const createPaymentIntent = async (req, res) => {
         return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
-      if (booking.status === 'paid') {
+      if (booking.status === 'Paid') {
         return res.status(400).json({ success: false, message: 'Already paid' });
       }
 
@@ -47,6 +47,8 @@ export const createPaymentIntent = async (req, res) => {
     const convertedAmount = currency.toLowerCase() === 'bdt' 
       ? Math.round((amount / 110) * 100) // 1 USD ≈ 110 BDT, convert to cents
       : Math.round(amount * 100); // USD to cents
+
+    console.log('🔄 Creating Stripe payment intent with amount:', convertedAmount, currency);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: convertedAmount,
@@ -70,8 +72,26 @@ export const createPaymentIntent = async (req, res) => {
       paymentIntentId: paymentIntent.id,
     });
   } catch (error) {
-    console.error('❌ Error creating payment intent:', error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ Error creating payment intent:', {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+      param: error.param,
+      statusCode: error.statusCode
+    });
+    
+    // Handle Stripe-specific errors
+    if (error.type === 'StripeAuthenticationError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Stripe authentication failed. Please check API keys.' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Failed to create payment intent'
+    });
   }
 };
 
@@ -222,11 +242,11 @@ export const processDummyPayment = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    if (booking.status !== 'accepted') {
-      return res.status(400).json({ success: false, message: 'Booking not accepted yet' });
+    if (booking.status !== 'Approved') {
+      return res.status(400).json({ success: false, message: 'Booking not approved yet' });
     }
 
-    if (booking.status === 'paid') {
+    if (booking.status === 'Paid') {
       return res.status(400).json({ success: false, message: 'Already paid' });
     }
 

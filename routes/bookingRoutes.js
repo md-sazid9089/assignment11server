@@ -15,7 +15,7 @@ import { verifyToken, requireRole } from '../middleware/auth.js';
 const router = express.Router();
 
 // Admin routes (must come before parameterized routes)
-router.get('/admin/all', verifyToken, getAllBookings);
+router.get('/admin/all', verifyToken, requireRole('admin'), getAllBookings);
 router.patch('/status/:id', verifyToken, requireRole('admin'), updateBookingStatusAdmin);
 
 // Vendor routes (must come before parameterized routes)

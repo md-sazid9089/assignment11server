@@ -77,9 +77,9 @@ export const getAllApprovedTickets = async (req, res) => {
     }
 
     let sortOptions = {};
-    if (sortBy === 'price-asc') {
+    if (sortBy === 'priceLowToHigh' || sortBy === 'price-asc') {
       sortOptions.pricePerUnit = 1;
-    } else if (sortBy === 'price-desc') {
+    } else if (sortBy === 'priceHighToLow' || sortBy === 'price-desc') {
       sortOptions.pricePerUnit = -1;
     } else {
       sortOptions.createdAt = -1;
