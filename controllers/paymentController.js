@@ -6,48 +6,71 @@ import Transaction from '../models/Transaction.js';
 // Create payment intent
 export const createPaymentIntent = async (req, res) => {
   try {
-    const { bookingId } = req.body;
+    console.log('💳 Creating payment intent:', req.body);
+    const { amount, currency = 'usd', bookingId } = req.body;
 
-    const booking = await Booking.findById(bookingId).populate('ticketId');
-
-    if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+    // Validate required fields
+    if (!amount) {
+      return res.status(400).json({ success: false, message: 'Amount is required' });
     }
 
-    if (booking.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-
-    if (booking.status !== 'accepted') {
-      return res.status(400).json({ success: false, message: 'Booking not accepted yet' });
-    }
-
-    if (booking.status === 'paid') {
-      return res.status(400).json({ success: false, message: 'Already paid' });
-    }
-
-    // Check if departure time has passed
-    const ticket = booking.ticketId;
-    const departureDateTime = new Date(`${ticket.departureDate.toISOString().split('T')[0]}T${ticket.departureTime}`);
+    let booking = null;
     
-    if (new Date() > departureDateTime) {
-      return res.status(400).json({ success: false, message: 'Cannot pay for past tickets' });
+    // If bookingId provided, validate the booking
+    if (bookingId) {
+      booking = await Booking.findById(bookingId).populate('ticketId');
+
+      if (!booking) {
+        return res.status(404).json({ success: false, message: 'Booking not found' });
+      }
+
+      if (booking.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Not authorized' });
+      }
+
+      if (booking.status === 'paid') {
+        return res.status(400).json({ success: false, message: 'Already paid' });
+      }
+
+      // Check if departure time has passed
+      const ticket = booking.ticketId;
+      if (ticket && ticket.departureDate && ticket.departureTime) {
+        const departureDateTime = new Date(`${ticket.departureDate.toISOString().split('T')[0]}T${ticket.departureTime}`);
+        
+        if (new Date() > departureDateTime) {
+          return res.status(400).json({ success: false, message: 'Cannot pay for past tickets' });
+        }
+      }
     }
+
+    // Convert BDT to USD for Stripe (approximate conversion)
+    const convertedAmount = currency.toLowerCase() === 'bdt' 
+      ? Math.round((amount / 110) * 100) // 1 USD ≈ 110 BDT, convert to cents
+      : Math.round(amount * 100); // USD to cents
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(booking.totalPrice * 100), // Convert to cents
-      currency: 'usd',
+      amount: convertedAmount,
+      currency: currency.toLowerCase() === 'bdt' ? 'usd' : currency.toLowerCase(),
+      automatic_payment_methods: {
+        enabled: true,
+      },
       metadata: {
-        bookingId: booking._id.toString(),
+        bookingId: bookingId || 'direct_payment',
         userId: req.user._id.toString(),
+        originalAmount: amount.toString(),
+        originalCurrency: currency.toLowerCase(),
       },
     });
+
+    console.log('✅ Payment intent created:', paymentIntent.id);
 
     res.status(200).json({
       success: true,
       clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
     });
   } catch (error) {
+    console.error('❌ Error creating payment intent:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -55,48 +78,89 @@ export const createPaymentIntent = async (req, res) => {
 // Confirm payment
 export const confirmPayment = async (req, res) => {
   try {
-    const { bookingId, paymentIntentId } = req.body;
-
-    const booking = await Booking.findById(bookingId).populate('ticketId');
-
-    if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
-    }
-
-    if (booking.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
+    console.log('✅ Confirming payment:', req.body);
+    const { bookingId, paymentIntentId, paymentMethod = 'Stripe' } = req.body;
 
     // Verify payment with Stripe
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     if (paymentIntent.status !== 'succeeded') {
-      return res.status(400).json({ success: false, message: 'Payment not successful' });
+      console.error('❌ Payment not successful:', paymentIntent.status);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Payment not successful', 
+        paymentStatus: paymentIntent.status 
+      });
     }
 
-    // Update booking status
-    booking.status = 'paid';
-    await booking.save();
+    console.log('💳 Payment verified with Stripe:', paymentIntentId);
 
-    // Decrease ticket quantity
-    const ticket = await Ticket.findById(booking.ticketId);
-    ticket.quantity -= booking.quantity;
-    await ticket.save();
+    let booking = null;
+    let transaction = null;
 
-    // Create transaction record
-    const transaction = await Transaction.create({
-      userId: req.user._id,
-      bookingId: booking._id,
-      ticketTitle: booking.ticketTitle,
-      amount: booking.totalPrice,
-      stripePaymentIntentId: paymentIntentId,
-      status: 'succeeded',
-    });
+    // If booking exists, process booking confirmation
+    if (bookingId && bookingId !== 'direct_payment') {
+      booking = await Booking.findById(bookingId).populate('ticketId');
+
+      if (!booking) {
+        return res.status(404).json({ success: false, message: 'Booking not found' });
+      }
+
+      if (booking.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Not authorized' });
+      }
+
+      // Update booking status
+      booking.status = 'paid';
+      await booking.save();
+
+      // Decrease ticket quantity
+      if (booking.ticketId) {
+        const ticket = await Ticket.findById(booking.ticketId);
+        if (ticket) {
+          ticket.quantity = Math.max(0, ticket.quantity - booking.quantity);
+          await ticket.save();
+          console.log('🎫 Updated ticket quantity:', ticket.quantity);
+        }
+      }
+
+      // Create transaction record
+      transaction = await Transaction.create({
+        userId: req.user._id,
+        bookingId: booking._id,
+        ticketTitle: booking.ticketTitle,
+        amount: parseFloat(paymentIntent.metadata.originalAmount) || booking.totalPrice,
+        paymentMethod: paymentMethod,
+        transactionId: paymentIntentId,
+        status: 'Success',
+      });
+
+      console.log('📊 Transaction created:', transaction.transactionId);
+    } else {
+      // Handle direct payments without booking
+      transaction = await Transaction.create({
+        userId: req.user._id,
+        bookingId: null,
+        ticketTitle: 'Direct Payment',
+        amount: parseFloat(paymentIntent.metadata.originalAmount) || (paymentIntent.amount / 100),
+        paymentMethod: paymentMethod,
+        transactionId: paymentIntentId,
+        status: 'Success',
+      });
+
+      console.log('💰 Direct payment transaction created:', transaction.transactionId);
+    }
 
     res.status(200).json({
       success: true,
+      message: 'Payment confirmed successfully',
       booking,
       transaction,
+      paymentIntent: {
+        id: paymentIntent.id,
+        status: paymentIntent.status,
+        amount: paymentIntent.amount,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

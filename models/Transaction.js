@@ -10,7 +10,7 @@ const transactionSchema = new mongoose.Schema({
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
-    required: true,
+    required: false, // Allow direct payments without booking
   },
   amount: {
     type: Number,
@@ -18,7 +18,7 @@ const transactionSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['bKash', 'Nagad', 'Visa', 'Mastercard'],
+    enum: ['bKash', 'Nagad', 'Visa', 'Mastercard', 'Stripe'],
     required: true,
   },
   transactionId: {
