@@ -70,11 +70,14 @@ export const createOrUpdateUser = async (req, res) => {
       });
     }
 
+    // Provide fallback for name if not provided
+    const userName = name || email?.split('@')[0] || 'User';
+
     let user = await User.findOne({ firebaseUid });
 
     if (user) {
       // Update existing user
-      user.name = name || user.name;
+      user.name = userName || user.name;
       user.photoURL = photoURL || user.photoURL;
       await user.save();
       console.log('✅ Updated existing user:', email, 'with role:', user.role);
@@ -89,7 +92,7 @@ export const createOrUpdateUser = async (req, res) => {
         });
         // Update the firebaseUid for existing user (in case of firebase re-authentication)
         existingEmailUser.firebaseUid = firebaseUid;
-        existingEmailUser.name = name || existingEmailUser.name;
+        existingEmailUser.name = userName || existingEmailUser.name;
         existingEmailUser.photoURL = photoURL || existingEmailUser.photoURL;
         await existingEmailUser.save();
         user = existingEmailUser;
@@ -100,7 +103,7 @@ export const createOrUpdateUser = async (req, res) => {
         const role = email === 'sazid98@gmail.com' ? 'admin' : email === 'abrar98@gmail.com' ? 'vendor' : 'user';
         
         user = await User.create({
-          name,
+          name: userName,
           email,
           photoURL,
           firebaseUid,
