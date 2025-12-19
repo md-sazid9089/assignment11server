@@ -53,11 +53,16 @@ export const createBooking = async (req, res) => {
       vendorId,
     });
 
-    console.log('✅ Booking created successfully:', {
+    // Decrease ticket quantity after successful booking
+    ticket.quantity -= quantity;
+    await ticket.save();
+    
+    console.log('✅ Booking created successfully and ticket quantity decreased:', {
       bookingId: booking.bookingId,
       mongoId: booking._id,
       ticketId: booking.ticketId,
       quantity: booking.quantity,
+      remainingTickets: ticket.quantity,
       status: booking.status,
       vendorId: booking.vendorId,
       userId: booking.userId
