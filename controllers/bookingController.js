@@ -294,25 +294,24 @@ export const deleteBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Check if the booking belongs to the user
-    if (booking.userId.toString() !== userId) {
-      return res.status(403).json({ success: false, message: 'Not authorized to cancel this booking' });
+    // Check if the user is admin or the booking owner
+    const isAdmin = req.user && req.user.role === 'admin';
+    if (!isAdmin && booking.userId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this booking' });
     }
 
-    // Check if booking is already cancelled
-    if (booking.status === 'cancelled') {
+    // Check if booking is already cancelled (only for non-admin users)
+    if (!isAdmin && booking.status === 'cancelled') {
       return res.status(400).json({ success: false, message: 'Booking is already cancelled' });
     }
 
-    // For now, allow cancellation of any status booking
-    // In future, you might want to add time restrictions or payment status checks
-    
     // Delete the booking
     await Booking.findByIdAndDelete(bookingId);
 
+    const actionMessage = isAdmin ? 'deleted' : 'cancelled';
     res.status(200).json({ 
       success: true, 
-      message: 'Booking cancelled successfully',
+      message: `Booking ${actionMessage} successfully`,
       bookingId: booking.bookingId
     });
   } catch (error) {

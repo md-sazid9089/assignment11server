@@ -230,7 +230,8 @@ export const getVendorRevenue = async (req, res) => {
 // Dummy payment (no real payment gateway)
 export const processDummyPayment = async (req, res) => {
   try {
-    const { bookingId, amount } = req.body;
+    console.log('💳 Processing dummy payment:', req.body);
+    const { bookingId, paymentDetails } = req.body;
 
     const booking = await Booking.findById(bookingId).populate('ticketId');
 
@@ -259,30 +260,32 @@ export const processDummyPayment = async (req, res) => {
     }
 
     // Update booking status
-    booking.status = 'paid';
+    booking.status = 'Paid';
     await booking.save();
 
-    // Decrease ticket quantity
-    ticket.quantity -= booking.quantity;
-    await ticket.save();
+    console.log('✅ Booking status updated to Paid');
 
-    // Create transaction record with dummy payment ID
+    // Create transaction record
     const transaction = await Transaction.create({
       userId: req.user._id,
       bookingId: booking._id,
       ticketTitle: booking.ticketTitle,
-      amount: amount,
-      stripePaymentIntentId: `DUMMY-${Date.now()}`,
-      status: 'succeeded',
+      amount: booking.totalPrice,
+      paymentMethod: 'Stripe',
+      transactionId: paymentDetails?.transactionId || `PAYMENT-${Date.now()}`,
+      status: 'Success',
     });
+
+    console.log('📊 Transaction created:', transaction.transactionId);
 
     res.status(200).json({
       success: true,
-      message: 'Dummy payment processed successfully',
+      message: 'Payment processed successfully',
       booking,
       transaction,
     });
   } catch (error) {
+    console.error('❌ Payment processing error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

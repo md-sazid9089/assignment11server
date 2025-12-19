@@ -14,6 +14,7 @@ const router = express.Router();
 router.post('/create-intent', verifyToken, createPaymentIntent);
 router.post('/confirm', verifyToken, confirmPayment);
 router.post('/dummy', verifyToken, processDummyPayment); // Dummy payment endpoint
+router.post('/', verifyToken, processDummyPayment); // Direct payment endpoint (same as dummy)
 router.get('/transactions', verifyToken, getUserTransactions);
 
 // Vendor routes
