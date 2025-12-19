@@ -71,9 +71,9 @@ export const getAllApprovedTickets = async (req, res) => {
       ];
     }
 
-    // Filter by transport type
+    // Filter by transport type (case-insensitive)
     if (transportType && transportType !== 'all') {
-      query.transportType = transportType;
+      query.transportType = transportType.toLowerCase();
     }
 
     let sortOptions = {};
