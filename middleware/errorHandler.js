@@ -1,18 +1,27 @@
 export const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Error occurred:', {
+    message: err.message,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+  });
 
-  const statusCode = err.statusCode || 500;
+  const statusCode = err.statusCode || res.statusCode || 500;
   const message = err.message || 'Internal Server Error';
 
+  // Always return JSON for API responses (better for Vercel logs)
   res.status(statusCode).json({
     success: false,
     message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    error: process.env.NODE_ENV === 'development' ? {
+      stack: err.stack,
+      details: err.details || null
+    } : undefined,
   });
 };
 
 export const notFound = (req, res, next) => {
   const error = new Error(`Not Found - ${req.originalUrl}`);
-  res.status(404);
+  error.statusCode = 404;
   next(error);
 };
