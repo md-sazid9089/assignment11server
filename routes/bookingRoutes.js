@@ -24,6 +24,7 @@ router.get('/:id', verifyToken, getBookingById);
 router.delete('/:id', verifyToken, deleteBooking);
 
 // Vendor routes
+router.get('/vendor', verifyToken, requireRole('vendor'), getVendorBookings);
 router.get('/vendor/requests', verifyToken, requireRole('vendor'), getVendorBookings);
 router.put('/vendor/status', verifyToken, requireRole('vendor'), updateBookingStatus);
 

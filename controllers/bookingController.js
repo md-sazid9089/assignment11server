@@ -58,7 +58,9 @@ export const createBooking = async (req, res) => {
       mongoId: booking._id,
       ticketId: booking.ticketId,
       quantity: booking.quantity,
-      status: booking.status
+      status: booking.status,
+      vendorId: booking.vendorId,
+      userId: booking.userId
     });
 
     res.status(201).json({ success: true, booking });
@@ -164,13 +166,19 @@ export const getUserBookings = async (req, res) => {
 // Get vendor's booking requests
 export const getVendorBookings = async (req, res) => {
   try {
+    console.log('🔍 Fetching vendor bookings for vendor ID:', req.user._id);
+    
     const bookings = await Booking.find({ vendorId: req.user._id })
       .populate('userId', 'name email')
       .populate('ticketId')
       .sort({ createdAt: -1 });
 
+    console.log('📊 Found', bookings.length, 'bookings for vendor:', req.user._id);
+    console.log('📋 Booking IDs:', bookings.map(b => ({ id: b._id, bookingId: b.bookingId, status: b.status })));
+
     res.status(200).json({ success: true, bookings });
   } catch (error) {
+    console.error('❌ Error fetching vendor bookings:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
