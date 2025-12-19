@@ -315,3 +315,73 @@ export const deleteBooking = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Admin: Update booking status (Approve/Cancel)
+export const updateBookingStatusAdmin = async (req, res) => {
+  try {
+    console.log('🔄 Admin updating booking status:', req.params.id);
+    console.log('👤 Admin user:', req.user.email, 'Role:', req.user.role);
+    console.log('📝 Status update:', req.body);
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status value
+    if (!status || !['Approved', 'Cancelled'].includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid status. Must be either "Approved" or "Cancelled"' 
+      });
+    }
+
+    // Find the booking
+    const booking = await Booking.findById(id).populate('ticketId', 'title price');
+
+    if (!booking) {
+      console.error('❌ Booking not found:', id);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Booking not found' 
+      });
+    }
+
+    // Check if booking is in Pending status
+    if (booking.status !== 'Pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot update booking status. Current status is "${booking.status}"` 
+      });
+    }
+
+    // Update the booking status
+    booking.status = status;
+    await booking.save();
+
+    console.log('✅ Booking status updated:', {
+      bookingId: booking.bookingId,
+      previousStatus: 'Pending',
+      newStatus: status,
+      admin: req.user.email
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Booking ${status.toLowerCase()} successfully`,
+      booking: {
+        _id: booking._id,
+        bookingId: booking.bookingId,
+        status: booking.status,
+        ticketTitle: booking.ticketTitle,
+        userName: booking.userName,
+        quantity: booking.quantity,
+        totalPrice: booking.totalPrice
+      }
+    });
+  } catch (error) {
+    console.error('❌ Update booking status error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
