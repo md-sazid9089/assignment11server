@@ -95,6 +95,8 @@ export const getAllApprovedTickets = async (req, res) => {
     const total = await Ticket.countDocuments(query);
 
     console.log(`✅ Found ${tickets.length} approved tickets out of ${total} total`);
+    console.log('📊 Query used:', JSON.stringify(query));
+    console.log('🔀 Sort options:', sortOptions);
 
     res.status(200).json({
       success: true,
